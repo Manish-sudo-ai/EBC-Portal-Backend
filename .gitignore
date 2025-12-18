@@ -5,6 +5,9 @@ package-lock.json
 # Environment variables
 .env
 
+# Firebase service account key (keep this file secret!)
+firebase-service-account.json
+
 # Logs
 logs
 *.log
