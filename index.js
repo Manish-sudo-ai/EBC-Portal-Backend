@@ -1,11 +1,31 @@
 const express = require('express');
 require('dotenv').config();
 const { promisePool, testConnection } = require('./config/database');
+const admin = require('./config/firebase');
+const cors = require('cors');
+
+// Firebase Auth Middleware
+const firebaseAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  const idToken = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid or expired token', details: error.message });
+  }
+};
+
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -75,6 +95,14 @@ app.get('/users', async (req, res) => {
   }
 });
 
+// Example protected route using Firebase Auth
+app.get('/protected', firebaseAuth, (req, res) => {
+  res.status(200).json({
+    message: 'You are authenticated with Firebase!',
+    user: req.user
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -105,6 +133,7 @@ const startServer = async () => {
       console.log(`   GET  /db-test    - Test database connection`);
       console.log(`   GET  /db-tables  - List all database tables`);
       console.log(`   GET  /users      - Get all users`);
+      console.log(`   GET  /protected  - Firebase Auth protected route`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
